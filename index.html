@@ -37,29 +37,44 @@
     }
     .step-title { font-weight: 600; font-size: 15px; color: #333; }
 
-    /* ── FIX: Give the QR container a FIXED pixel height so Html5Qrcode
-               can measure it before the camera stream is attached ── */
-    #qr-reader {
-      width: 100%;
-      height: 260px;                 /* explicit height = critical fix */
-      border-radius: 8px;
-      overflow: hidden;
-      border: 2px dashed #0b78ba;
-      background: #000;
-      position: relative;
-    }
-    #qr-reader video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover;
-    }
-    #qr-reader canvas { display: none; }
-    .qr-placeholder {
+    /* QR scanner area */
+    #qr-placeholder-view {
+      width: 100%; height: 260px;
+      background: #f8fbff; border: 2px dashed #0b78ba; border-radius: 8px;
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      height: 260px; gap: 10px; background: #f8fbff;
+      align-items: center; justify-content: center; gap: 10px;
     }
-    .qr-placeholder p { color: #aaa; font-size: 13px; text-align: center; padding: 0 12px; }
+    #qr-placeholder-view p { color: #999; font-size: 13px; }
+
+    #qr-wrap {
+      position: relative; width: 100%; height: 280px;
+      background: #000; border-radius: 8px; overflow: hidden;
+      display: none;
+    }
+    #qr-video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    #qr-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .qr-frame {
+      width: 210px; height: 210px;
+      border: 3px solid #fff; border-radius: 12px;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
+      position: relative; overflow: hidden;
+    }
+    .qr-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: #0b78ba; border-radius: 2px;
+      animation: scan 1.8s linear infinite;
+    }
+    @keyframes scan { 0% { top: 0; } 100% { top: calc(100% - 3px); } }
+    #qr-hint {
+      position: absolute; bottom: 10px; width: 100%;
+      text-align: center; color: rgba(255,255,255,0.85); font-size: 12px;
+    }
 
     .scan-result {
       background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px;
@@ -67,14 +82,12 @@
     }
     .scan-result.show { display: flex; }
     .scan-result span { color: #2e7d32; font-weight: 600; font-size: 14px; }
-
     .loc-status {
       padding: 10px 14px; border-radius: 8px; font-size: 14px;
       background: #fff3e0; border: 1px solid #ff9800; color: #e65100;
       display: flex; align-items: center; gap: 8px;
     }
     .loc-status.success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
-
     #camera-preview {
       width: 100%; border-radius: 8px; background: #000;
       max-height: 220px; object-fit: cover; display: none;
@@ -97,31 +110,23 @@
       border: none; cursor: pointer; border-radius: 8px; margin-top: 4px;
     }
     .btn-success:disabled { background: #bdbdbd; cursor: not-allowed; }
-
     .status-msg {
-      text-align: center; padding: 12px; border-radius: 8px;
-      font-weight: 600; display: none; margin-top: 12px;
-      font-size: 13px; word-break: break-all;
+      text-align: center; padding: 12px; border-radius: 8px; font-weight: 600;
+      display: none; margin-top: 12px; font-size: 13px; word-break: break-all;
     }
     .status-msg.success { display: block; background: #e8f5e9; color: #2e7d32; }
     .status-msg.error   { display: block; background: #ffebee; color: #c62828; }
-
     .progress-bar {
       width: 100%; height: 6px; background: #e0e0e0;
       border-radius: 3px; margin-top: 10px; display: none;
     }
-    .progress-fill {
-      height: 100%; background: #0b78ba; border-radius: 3px; transition: width 0.3s ease;
-    }
+    .progress-fill { height: 100%; background: #0b78ba; border-radius: 3px; transition: width 0.3s; }
     .error-box {
       background: #ffebee; border: 1px solid #ef9a9a; border-radius: 8px;
-      padding: 12px 14px; margin-top: 8px; display: none;
+      padding: 12px 14px; margin-top: 10px; display: none;
     }
     .error-box p { color: #c62828; font-size: 13px; margin-bottom: 8px; }
-
-    #manual-input-row {
-      display: none; margin-top: 10px; gap: 8px;
-    }
+    #manual-input-row { display: none; margin-top: 10px; gap: 8px; }
     #manual-input-row input {
       flex: 1; padding: 10px 12px; border: 1px solid #ccc;
       border-radius: 8px; font-size: 14px;
@@ -130,6 +135,7 @@
       padding: 10px 14px; background: #0b78ba; color: white;
       border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -169,31 +175,38 @@
       <div class="step-title">Scan Training QR Code</div>
     </div>
 
-    <div id="qr-reader">
-      <div class="qr-placeholder" id="qr-placeholder">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="1.5">
-          <rect x="3" y="3" width="7" height="7"/>
-          <rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/>
-          <rect x="5" y="5" width="3" height="3" fill="#0b78ba"/>
-          <rect x="16" y="5" width="3" height="3" fill="#0b78ba"/>
-          <rect x="5" y="16" width="3" height="3" fill="#0b78ba"/>
-        </svg>
-        <p id="qr-placeholder-text">Tap below to start camera</p>
-      </div>
+    <div id="qr-placeholder-view">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="1.5">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+        <rect x="5" y="5" width="3" height="3" fill="#0b78ba"/>
+        <rect x="16" y="5" width="3" height="3" fill="#0b78ba"/>
+        <rect x="5" y="16" width="3" height="3" fill="#0b78ba"/>
+      </svg>
+      <p>Tap the button below to start scanning</p>
     </div>
 
-    <!-- Start scanner button (avoids autostart race conditions on mobile) -->
-    <div style="margin-top:10px;">
-      <button class="btn btn-primary" id="btn-start-scan" onclick="startQRScanner()" style="width:100%; justify-content:center;">
+    <div id="qr-wrap">
+      <video id="qr-video" autoplay playsinline muted></video>
+      <canvas id="qr-canvas" style="display:none;"></canvas>
+      <div id="qr-overlay">
+        <div class="qr-frame"><div class="qr-line"></div></div>
+      </div>
+      <div id="qr-hint">Hold the QR code steady inside the box</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-start-scan" onclick="startScanner()" style="flex:1; justify-content:center;">
         📷 Start QR Scanner
       </button>
+      <button class="btn btn-secondary" onclick="toggleManualInput()">⌨️ Manual</button>
     </div>
 
     <div class="error-box" id="qr-error-box">
-      <p id="qr-error-text">Camera could not be accessed.</p>
+      <p id="qr-error-text">Could not access camera.</p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-warning" onclick="retryQRScanner()">🔄 Retry Camera</button>
+        <button class="btn btn-warning" onclick="retryScanner()">🔄 Retry</button>
         <button class="btn btn-secondary" onclick="toggleManualInput()">⌨️ Enter Manually</button>
       </div>
     </div>
@@ -242,7 +255,6 @@
   <button class="btn-success" id="btn-submit" onclick="submitAttendance()" disabled>
     ✅ Submit Attendance
   </button>
-
   <div class="progress-bar" id="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width:0%"></div>
   </div>
@@ -250,28 +262,24 @@
 
 </div><!-- /container -->
 
-<!-- Html5-QRCode library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-
 <script>
 // ─────────────────────────────────────────────────────────────────
-//  ⚠️  REPLACE THIS with YOUR Attendance Scanner Apps Script URL
-//      (the one you deploy from AttendanceScanner_AppsScript.js)
+//  ⚠️  REPLACE with YOUR Attendance Scanner Apps Script URL
 // ─────────────────────────────────────────────────────────────────
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
 
-// ── Global state ─────────────────────────────────────────────────
 const state = {
   name: "", uid: "", rowNum: 0,
   trainingName: "", lat: null, lng: null,
-  timestamp: "", photoBase64: "", stream: null
+  timestamp: "", photoBase64: "", photoStream: null
 };
 
-let qrScanner      = null;
-let scannerRunning = false;
+let scanStream   = null;
+let scanInterval = null;
+let scannerActive = false;
 
 // ─────────────────────────────────────────────────────────────────
-//  ON LOAD: read ?row= from URL → fetch member info + start location
+//  ON LOAD
 // ─────────────────────────────────────────────────────────────────
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
@@ -280,141 +288,178 @@ window.onload = async () => {
 
   if (row > 0) {
     try {
-      // Uses no-cors-safe GET — Apps Script returns JSON directly
       const res  = await fetch(WEB_APP_URL + "?row=" + row);
       const json = await res.json();
       if (json.name) state.name = json.name;
       if (json.uid)  state.uid  = json.uid;
-    } catch (err) {
-      console.warn("Member fetch failed:", err);
-    }
+    } catch (e) { console.warn("Member fetch:", e); }
   }
 
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
   document.getElementById("display-uid").textContent  =
-    state.uid  || (row > 0 ? "UID not found (check sheet row " + row + ")" : "No row parameter in URL");
+    state.uid  || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
 
   getLocation();
 };
 
 // ─────────────────────────────────────────────────────────────────
-//  QR SCANNER — started manually by button to avoid mobile race
+//  QR SCANNER
+//  Strategy: BarcodeDetector (native, fast) → jsQR (canvas, universal)
+//  No Html5Qrcode dependency — avoids all its mobile init bugs
 // ─────────────────────────────────────────────────────────────────
-async function startQRScanner() {
-  if (scannerRunning) return;
+async function startScanner() {
+  if (scannerActive) return;
 
-  document.getElementById("btn-start-scan").style.display    = "none";
-  document.getElementById("qr-placeholder-text").textContent = "Requesting camera...";
-  document.getElementById("qr-error-box").style.display      = "none";
+  const btn = document.getElementById("btn-start-scan");
+  btn.disabled    = true;
+  btn.textContent = "⏳ Starting...";
+  document.getElementById("qr-error-box").style.display = "none";
 
-  // Step 1: request permission explicitly first
+  // ── 1. Get camera stream (rear preferred, fallback to any) ──
   try {
-    const test = await navigator.mediaDevices.getUserMedia({ video: true });
-    test.getTracks().forEach(t => t.stop());
+    try {
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { exact: "environment" },
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+    } catch (e) {
+      // exact environment failed → try soft preference
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+    }
   } catch (err) {
-    showQRError("Camera permission denied. Please allow camera access and tap Retry.", err);
+    showQRError("Camera permission denied. Tap Retry after allowing camera access.");
+    btn.disabled    = false;
+    btn.textContent = "📷 Start QR Scanner";
     return;
   }
 
-  // Step 2: prefer rear camera
-  let cameraConstraint = { facingMode: "environment" };
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cams    = devices.filter(d => d.kind === "videoinput");
-    const rear    = cams.find(d =>
-      d.label.toLowerCase().includes("back")  ||
-      d.label.toLowerCase().includes("rear")  ||
-      d.label.toLowerCase().includes("environment")
-    );
-    if (rear)          cameraConstraint = { deviceId: { exact: rear.deviceId } };
-    else if (cams.length === 1) cameraConstraint = { deviceId: { exact: cams[0].deviceId } };
-  } catch (e) { /* fallback to environment */ }
+  // ── 2. Show video element ──
+  const video = document.getElementById("qr-video");
+  video.srcObject = scanStream;
 
-  // Step 3: hide placeholder, initialise scanner
-  document.getElementById("qr-placeholder").style.display = "none";
+  // Wait for video to be ready before starting decode loop
+  await new Promise(resolve => {
+    video.onloadedmetadata = () => { video.play().then(resolve).catch(resolve); };
+  });
 
-  // Small delay so the DOM repaints at full height before Html5Qrcode measures it
-  await new Promise(r => setTimeout(r, 150));
+  document.getElementById("qr-placeholder-view").style.display = "none";
+  document.getElementById("qr-wrap").style.display             = "block";
+  btn.textContent  = "🔍 Scanning...";
+  scannerActive    = true;
 
-  try {
-    qrScanner = new Html5Qrcode("qr-reader", { verbose: false });
-
-    const config = {
-      fps: 10,
-      qrbox: { width: 220, height: 220 },
-      aspectRatio: 1.0,
-      disableFlip: false
-    };
-
-    await qrScanner.start(cameraConstraint, config, onQRSuccess, () => {});
-    scannerRunning = true;
-
-  } catch (err) {
-    // If rear exact fails, try any available camera
+  // ── 3. Choose decode engine ──
+  if (typeof BarcodeDetector !== "undefined") {
+    // Native Chrome Android / desktop — fastest, most reliable
     try {
-      await qrScanner.start({ facingMode: "environment" }, {
-        fps: 10, qrbox: { width: 220, height: 220 }
-      }, onQRSuccess, () => {});
-      scannerRunning = true;
-    } catch (err2) {
-      showQRError("Could not start camera: " + err2.message, err2);
+      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      scanInterval = setInterval(() => nativeDecode(video, detector), 300);
+    } catch (e) {
+      // BarcodeDetector exists but failed (e.g. format not supported) → jsQR
+      loadJsQR(() => {
+        scanInterval = setInterval(() => jsQRDecode(video), 300);
+      });
     }
+  } else {
+    // Safari, Firefox, older Android → jsQR via canvas
+    loadJsQR(() => {
+      scanInterval = setInterval(() => jsQRDecode(video), 300);
+    });
   }
 }
 
-function onQRSuccess(text) {
-  // text is the raw QR content (training name)
+// ── Native BarcodeDetector ────────────────────────────────────────
+async function nativeDecode(video, detector) {
+  if (!scannerActive || video.readyState < 2) return;
+  try {
+    const barcodes = await detector.detect(video);
+    if (barcodes.length > 0 && barcodes[0].rawValue) {
+      onScanSuccess(barcodes[0].rawValue);
+    }
+  } catch (e) { /* frame skipped */ }
+}
+
+// ── jsQR canvas decode ────────────────────────────────────────────
+function jsQRDecode(video) {
+  if (!scannerActive || video.readyState < 2 || !window.jsQR) return;
+  const canvas = document.getElementById("qr-canvas");
+  const ctx    = canvas.getContext("2d");
+  const w      = video.videoWidth  || 640;
+  const h      = video.videoHeight || 480;
+  if (canvas.width !== w)  canvas.width  = w;
+  if (canvas.height !== h) canvas.height = h;
+  ctx.drawImage(video, 0, 0, w, h);
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const code = window.jsQR(imageData.data, w, h, {
+    inversionAttempts: "dontInvert"
+  });
+  if (code && code.data) {
+    onScanSuccess(code.data);
+  }
+}
+
+// ── Load jsQR from CDN (only when BarcodeDetector not available) ──
+function loadJsQR(cb) {
+  if (window.jsQR) { cb(); return; }
+  const s   = document.createElement("script");
+  s.src     = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+  s.onload  = cb;
+  s.onerror = () => showQRError("QR library failed to load. Use Manual entry instead.");
+  document.head.appendChild(s);
+}
+
+// ── Successful scan ───────────────────────────────────────────────
+function onScanSuccess(text) {
+  if (!text || !scannerActive) return;
+  stopScanner();
+
   state.trainingName = text.trim();
   document.getElementById("training-name-display").textContent =
     "✅ Training: " + state.trainingName;
   document.getElementById("scan-result").classList.add("show");
+  document.getElementById("qr-wrap").style.display             = "none";
+  document.getElementById("qr-placeholder-view").style.display = "none";
 
-  // Stop scanner cleanly
-  if (qrScanner) {
-    qrScanner.stop().then(() => {
-      qrScanner      = null;
-      scannerRunning = false;
-    }).catch(() => {
-      qrScanner      = null;
-      scannerRunning = false;
-    });
-  }
+  const btn = document.getElementById("btn-start-scan");
+  btn.textContent = "✅ Scanned";
+  btn.disabled    = true;
+
   checkSubmitReady();
 }
 
-function showQRError(msg, err) {
-  console.error("QR error:", err);
-  scannerRunning = false;
-  document.getElementById("qr-placeholder").style.display      = "flex";
-  document.getElementById("qr-placeholder-text").textContent   = "Camera unavailable";
-  document.getElementById("qr-error-text").textContent         = msg;
-  document.getElementById("qr-error-box").style.display        = "block";
-  document.getElementById("btn-start-scan").style.display      = "block";
-  document.getElementById("btn-start-scan").textContent        = "📷 Retry QR Scanner";
+function stopScanner() {
+  scannerActive = false;
+  clearInterval(scanInterval);
+  scanInterval = null;
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
 }
 
-function retryQRScanner() {
-  if (qrScanner) { qrScanner.stop().catch(() => {}); qrScanner = null; }
-  scannerRunning = false;
+function showQRError(msg) {
+  document.getElementById("qr-error-text").textContent  = msg;
+  document.getElementById("qr-error-box").style.display = "block";
+  const btn = document.getElementById("btn-start-scan");
+  btn.disabled    = false;
+  btn.textContent = "📷 Start QR Scanner";
+}
 
-  // Rebuild the QR container div cleanly (Html5Qrcode leaves DOM artefacts)
-  const container = document.getElementById("qr-reader");
-  container.innerHTML =
-    '<div class="qr-placeholder" id="qr-placeholder">' +
-    '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="1.5">' +
-    '<rect x="3" y="3" width="7" height="7"/>' +
-    '<rect x="14" y="3" width="7" height="7"/>' +
-    '<rect x="3" y="14" width="7" height="7"/>' +
-    '<rect x="5" y="5" width="3" height="3" fill="#0b78ba"/>' +
-    '</svg>' +
-    '<p id="qr-placeholder-text">Starting camera...</p>' +
-    '</div>';
-
-  document.getElementById("qr-error-box").style.display   = "none";
-  document.getElementById("btn-start-scan").style.display = "none";
-
-  setTimeout(startQRScanner, 400);
+function retryScanner() {
+  stopScanner();
+  document.getElementById("qr-error-box").style.display        = "none";
+  document.getElementById("qr-wrap").style.display             = "none";
+  document.getElementById("qr-placeholder-view").style.display = "block";
+  setTimeout(startScanner, 300);
 }
 
 function toggleManualInput() {
@@ -427,9 +472,8 @@ function toggleManualInput() {
 function setManualTraining() {
   const val = document.getElementById("manual-training-input").value.trim();
   if (!val) { alert("Please enter a training name."); return; }
-  onQRSuccess(val);
+  onScanSuccess(val);
   document.getElementById("manual-input-row").style.display = "none";
-  document.getElementById("qr-error-box").style.display     = "none";
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -441,7 +485,7 @@ function getLocation() {
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    pos => {
       state.lat       = pos.coords.latitude.toFixed(6);
       state.lng       = pos.coords.longitude.toFixed(6);
       state.timestamp = new Date().toLocaleString("en-IN");
@@ -450,25 +494,24 @@ function getLocation() {
         "📍 " + state.lat + ", " + state.lng;
       checkSubmitReady();
     },
-    (err) => {
+    () => {
       document.getElementById("loc-text").textContent =
         "Location denied. Enable GPS and refresh.";
-      console.warn("Location error:", err);
     },
     { enableHighAccuracy: true, timeout: 15000 }
   );
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  PHOTO CAPTURE
+//  PHOTO
 // ─────────────────────────────────────────────────────────────────
 async function openCamera() {
   try {
-    state.stream = await navigator.mediaDevices.getUserMedia({
+    state.photoStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 } }
     });
     const video = document.getElementById("camera-preview");
-    video.srcObject = state.stream;
+    video.srcObject = state.photoStream;
     video.style.display = "block";
     document.getElementById("btn-open-camera").style.display = "none";
     document.getElementById("btn-capture").style.display     = "inline-flex";
@@ -480,20 +523,14 @@ async function openCamera() {
 function capturePhoto() {
   const video  = document.getElementById("camera-preview");
   const canvas = document.createElement("canvas");
-  canvas.width  = 200;
-  canvas.height = 150;
+  canvas.width  = 200; canvas.height = 150;
   canvas.getContext("2d").drawImage(video, 0, 0, 200, 150);
-
-  const full        = canvas.toDataURL("image/jpeg", 0.25);
+  const full = canvas.toDataURL("image/jpeg", 0.25);
   state.photoBase64 = full.split(",")[1];
-
-  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+  if (state.photoStream) state.photoStream.getTracks().forEach(t => t.stop());
   video.style.display = "none";
-
-  const preview = document.getElementById("photo-preview");
-  preview.src   = full;
-  preview.style.display = "block";
-
+  const prev = document.getElementById("photo-preview");
+  prev.src = full; prev.style.display = "block";
   document.getElementById("btn-capture").style.display = "none";
   document.getElementById("btn-retake").style.display  = "inline-flex";
   checkSubmitReady();
@@ -501,8 +538,8 @@ function capturePhoto() {
 
 function retakePhoto() {
   state.photoBase64 = "";
-  document.getElementById("photo-preview").style.display  = "none";
-  document.getElementById("btn-retake").style.display     = "none";
+  document.getElementById("photo-preview").style.display   = "none";
+  document.getElementById("btn-retake").style.display      = "none";
   document.getElementById("btn-open-camera").style.display = "inline-flex";
   checkSubmitReady();
 }
@@ -511,8 +548,8 @@ function retakePhoto() {
 //  SUBMIT
 // ─────────────────────────────────────────────────────────────────
 function checkSubmitReady() {
-  const ready = !!(state.trainingName && state.lat && state.photoBase64);
-  document.getElementById("btn-submit").disabled = !ready;
+  document.getElementById("btn-submit").disabled =
+    !(state.trainingName && state.lat && state.photoBase64);
 }
 
 function setProgress(pct, text) {
@@ -523,15 +560,13 @@ function setProgress(pct, text) {
 
 async function postToScript(payload) {
   const res  = await fetch(WEB_APP_URL, {
-    method:   "POST",
-    redirect: "follow",
-    headers:  { "Content-Type": "application/json" },
-    body:     JSON.stringify(payload)
+    method: "POST", redirect: "follow",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
   });
   const text = await res.text();
   try { return JSON.parse(text); }
   catch (e) {
-    // Apps Script sometimes wraps JSON in HTML — try to extract it
     const m = text.match(/\{"success"[\s\S]*?\}/);
     if (m) return JSON.parse(m[0]);
     throw new Error("Server error: " + text.substring(0, 200));
@@ -541,34 +576,26 @@ async function postToScript(payload) {
 async function submitAttendance() {
   const btn = document.getElementById("btn-submit");
   const msg = document.getElementById("status-msg");
-  btn.disabled    = true;
+  btn.disabled = true;
   msg.style.display = "none";
 
   try {
     setProgress(30, "Saving attendance...");
-
     const res1 = await postToScript({
-      name:         state.name         || "Unknown",
-      uid:          state.uid          || "Unknown",
-      lat:          state.lat          || "0",
-      lng:          state.lng          || "0",
-      timestamp:    state.timestamp    || new Date().toLocaleString("en-IN"),
+      name: state.name || "Unknown", uid: state.uid || "Unknown",
+      lat: state.lat || "0", lng: state.lng || "0",
+      timestamp: state.timestamp || new Date().toLocaleString("en-IN"),
       trainingName: state.trainingName || "Unknown"
     });
-
-    if (!res1.success) throw new Error(res1.error || "Failed to save attendance");
+    if (!res1.success) throw new Error(res1.error || "Failed to save");
 
     setProgress(70, "Uploading photo...");
     try {
       await postToScript({
-        type:    "photo",
-        rowNum:  res1.rowNum,
-        uid:     state.uid,
-        photo:   state.photoBase64
+        type: "photo", rowNum: res1.rowNum,
+        uid: state.uid, photo: state.photoBase64
       });
-    } catch (pe) {
-      console.warn("Photo upload failed (non-fatal):", pe.message);
-    }
+    } catch (pe) { console.warn("Photo upload (non-fatal):", pe.message); }
 
     setProgress(100, "Done!");
     setTimeout(() => {

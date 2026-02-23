@@ -26,11 +26,12 @@
       font-weight: 700; font-size: 13px; flex-shrink: 0; }
     .step-title { font-weight: 600; font-size: 15px; color: #333; }
     #qr-reader { width: 100%; border-radius: 8px; overflow: hidden;
-      border: 2px dashed #0b78ba; background: #000; min-height: 220px; position: relative; }
-    #qr-reader video { width: 100% !important; height: 220px !important; object-fit: cover; border-radius: 6px; }
+      border: 2px dashed #0b78ba; background: #000; min-height: 240px; position: relative; }
+    #qr-reader video { width: 100% !important; height: 240px !important;
+      object-fit: cover; border-radius: 6px; }
     #qr-reader canvas { display: none; }
     .qr-placeholder { display: flex; flex-direction: column; align-items: center;
-      justify-content: center; min-height: 220px; gap: 10px; }
+      justify-content: center; min-height: 240px; gap: 10px; }
     .qr-placeholder p { color: #aaa; font-size: 13px; text-align: center; padding: 0 12px; }
     .scan-result { background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px;
       padding: 10px 14px; display: none; align-items: center; gap: 8px; margin-top: 10px; }
@@ -69,12 +70,6 @@
       border-radius: 8px; font-size: 14px; }
     #manual-input-row button { padding: 10px 14px; background: #0b78ba; color: white;
       border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-    .loading-card { background: white; border-radius: 12px; padding: 24px 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px; text-align: center; }
-    .loading-card p { color: #666; font-size: 14px; margin-top: 8px; }
-    .spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0;
-      border-top-color: #0b78ba; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -92,13 +87,7 @@
 
 <div class="container">
 
-  <!-- Loading state while fetching name/UID -->
-  <div class="loading-card" id="loading-card">
-    <div class="spinner"></div>
-    <p>Loading your details...</p>
-  </div>
-
-  <div class="info-card" id="info-card" style="display:none;">
+  <div class="info-card">
     <div class="avatar">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="2">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -111,7 +100,6 @@
     </div>
   </div>
 
-  <!-- STEP 1: QR Scanner -->
   <div class="step-card">
     <div class="step-header">
       <div class="step-num">1</div>
@@ -137,7 +125,7 @@
       </div>
     </div>
 
-    <div id="manual-input-row" style="display:none; margin-top:10px; gap:8px;">
+    <div id="manual-input-row">
       <input type="text" id="manual-training-input" placeholder="Type training name here..." />
       <button onclick="setManualTraining()">✔</button>
     </div>
@@ -149,7 +137,6 @@
     </div>
   </div>
 
-  <!-- STEP 2: Location -->
   <div class="step-card">
     <div class="step-header">
       <div class="step-num">2</div>
@@ -163,7 +150,6 @@
     </div>
   </div>
 
-  <!-- STEP 3: Photo -->
   <div class="step-card">
     <div class="step-header">
       <div class="step-num">3</div>
@@ -173,7 +159,7 @@
     <img   id="photo-preview" alt="Captured photo">
     <div class="camera-controls">
       <button class="btn btn-primary" id="btn-open-camera" onclick="openCamera()">📷 Open Camera</button>
-      <button class="btn btn-primary" id="btn-capture" onclick="capturePhoto()" style="display:none;">📸 Capture Photo</button>
+      <button class="btn btn-primary" id="btn-capture" onclick="capturePhoto()" style="display:none;">📸 Capture</button>
       <button class="btn btn-secondary" id="btn-retake" onclick="retakePhoto()" style="display:none;">🔄 Retake</button>
     </div>
   </div>
@@ -185,18 +171,16 @@
   <div class="progress-bar" id="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width:0%"></div>
   </div>
-
   <div class="status-msg" id="status-msg"></div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
-  // ─── IMPORTANT: Replace this with your own Apps Script deployment URL ───
+  // ⚠️ REPLACE THIS WITH YOUR ATTENDANCE SCANNER DEPLOYMENT URL
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby1fIDgteCJyxGyY-PnDO0TOeyBb6cxXqUvYAkPmJfbTmCwNDHIL54C4z0iTt0ApoHF/exec";
 
   const state = {
-    name: "", uid: "",
+    name: "", uid: "", rowNum: 0,
     trainingName: "", lat: null, lng: null,
     timestamp: "", photoBase64: "", stream: null
   };
@@ -204,74 +188,75 @@
   let qrScanner = null;
   let scannerStarted = false;
 
-  // ── ON LOAD: read ?row= from URL, fetch name+UID from Apps Script ──
+  // ── ON LOAD: get ?row= from URL, fetch name+UID ──────────────────
   window.onload = async () => {
     const params = new URLSearchParams(window.location.search);
-    const rowNum = params.get("row");
+    const row = parseInt(params.get("row") || "0");
+    state.rowNum = row;
 
-    if (rowNum && parseInt(rowNum) > 0) {
+    if (row > 0) {
       try {
-        const res = await fetch(WEB_APP_URL + "?row=" + rowNum);
-        const html = await res.text();
-        // Extract name and uid injected by Apps Script into the HTML
-        const nameMatch = html.match(/id="display-name"[^>]*>([^<]*)</);
-        const uidMatch  = html.match(/id="display-uid"[^>]*>([^<]*)</);
-        if (nameMatch && nameMatch[1] && nameMatch[1] !== "Loading...") {
-          state.name = nameMatch[1].trim();
-          state.uid  = uidMatch ? uidMatch[1].trim() : "";
-        } else {
-          // Try to extract from JS state initialization in returned HTML
-          const jsNameMatch = html.match(/name\s*:\s*"([^"]*)"/);
-          const jsUidMatch  = html.match(/uid\s*:\s*"([^"]*)"/);
-          if (jsNameMatch) state.name = jsNameMatch[1];
-          if (jsUidMatch)  state.uid  = jsUidMatch[1];
-        }
-      } catch(e) {
-        console.log("Could not fetch details:", e);
+        // Fetch name and UID from Apps Script via GET
+        const res = await fetch(WEB_APP_URL + "?row=" + row);
+        const json = await res.json();
+        if (json.name) state.name = json.name;
+        if (json.uid)  state.uid  = json.uid;
+      } catch(err) {
+        console.log("Fetch error:", err);
+        // Try no-cors fallback — read from URL hash if Delivery script put it there
       }
     }
 
-    // Show name/UID or fallback
-    document.getElementById("loading-card").style.display = "none";
-    document.getElementById("info-card").style.display = "flex";
     document.getElementById("display-name").textContent = state.name || "Name not found";
-    document.getElementById("display-uid").textContent  = state.uid  || "UID not found";
+    document.getElementById("display-uid").textContent  = state.uid  || "Check your ID card";
 
     getLocation();
-    setTimeout(startQRScanner, 600);
+    setTimeout(startQRScanner, 800);
   };
 
   // ── QR SCANNER ───────────────────────────────────────────────────
   async function startQRScanner() {
     if (scannerStarted) return;
     scannerStarted = true;
+
     document.getElementById("qr-placeholder-text").textContent = "Requesting camera...";
     document.getElementById("qr-error-box").style.display = "none";
 
+    // Request permission first
     try {
-      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      testStream.getTracks().forEach(t => t.stop());
-    } catch(permErr) {
-      showQRError("Camera permission denied. Please allow camera access in your browser settings, then tap Retry.", permErr);
+      const test = await navigator.mediaDevices.getUserMedia({ video: true });
+      test.getTracks().forEach(t => t.stop());
+    } catch(err) {
+      showQRError("Camera permission denied. Please allow camera and tap Retry.", err);
       return;
     }
 
+    // Find rear camera
     let cameraId = null;
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(d => d.kind === "videoinput");
-      const rearCam = videoDevices.find(d =>
+      const cams = devices.filter(d => d.kind === "videoinput");
+      const rear = cams.find(d =>
         d.label.toLowerCase().includes("back") ||
         d.label.toLowerCase().includes("rear") ||
         d.label.toLowerCase().includes("environment")
       );
-      if (rearCam) cameraId = rearCam.deviceId;
+      // If only one camera, use it. If rear found, use it.
+      if (rear) cameraId = rear.deviceId;
+      else if (cams.length === 1) cameraId = cams[0].deviceId;
     } catch(e) {}
 
     try {
       document.getElementById("qr-placeholder").style.display = "none";
       qrScanner = new Html5Qrcode("qr-reader");
-      const config = { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 };
+
+      // Wider qrbox = easier to scan
+      const config = {
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        disableFlip: false
+      };
 
       if (cameraId) {
         await qrScanner.start({ deviceId: { exact: cameraId } }, config, onQRSuccess, () => {});
@@ -282,21 +267,21 @@
           await qrScanner.start({ facingMode: "environment" }, config, onQRSuccess, () => {});
         }
       }
-    } catch(startErr) {
-      showQRError("Could not start QR camera: " + startErr.message, startErr);
+    } catch(err) {
+      showQRError("Could not start camera: " + err.message, err);
     }
   }
 
-  function onQRSuccess(decodedText) {
-    state.trainingName = decodedText;
-    document.getElementById("training-name-display").textContent = "Training: " + decodedText;
+  function onQRSuccess(text) {
+    state.trainingName = text;
+    document.getElementById("training-name-display").textContent = "✅ Training: " + text;
     document.getElementById("scan-result").classList.add("show");
     if (qrScanner) { qrScanner.stop().catch(() => {}); qrScanner = null; }
     checkSubmitReady();
   }
 
   function showQRError(msg, err) {
-    console.error("QR Error:", err);
+    console.error("QR:", err);
     scannerStarted = false;
     document.getElementById("qr-placeholder").style.display = "flex";
     document.getElementById("qr-placeholder-text").textContent = "Camera unavailable";
@@ -305,23 +290,23 @@
   }
 
   function retryQRScanner() {
-    if (qrScanner) { qrScanner.stop().catch(() => {}).finally(() => { qrScanner = null; }); }
-    const reader = document.getElementById("qr-reader");
-    reader.innerHTML = `<div class="qr-placeholder" id="qr-placeholder">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="1.5">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/>
-      </svg>
-      <p id="qr-placeholder-text">Starting camera...</p>
-    </div>`;
+    if (qrScanner) { qrScanner.stop().catch(() => {}); qrScanner = null; }
+    document.getElementById("qr-reader").innerHTML =
+      `<div class="qr-placeholder" id="qr-placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0b78ba" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <p id="qr-placeholder-text">Starting camera...</p>
+      </div>`;
     document.getElementById("qr-error-box").style.display = "none";
     scannerStarted = false;
-    setTimeout(startQRScanner, 400);
+    setTimeout(startQRScanner, 500);
   }
 
   function toggleManualInput() {
     const row = document.getElementById("manual-input-row");
-    row.style.display = (row.style.display === "none" || row.style.display === "") ? "flex" : "none";
+    row.style.display = (row.style.display === "flex") ? "none" : "flex";
     if (row.style.display === "flex") document.getElementById("manual-training-input").focus();
   }
 
@@ -345,17 +330,17 @@
         state.lng = pos.coords.longitude.toFixed(6);
         state.timestamp = new Date().toLocaleString("en-IN");
         document.getElementById("loc-status").classList.add("success");
-        document.getElementById("loc-text").textContent = "Captured: " + state.lat + ", " + state.lng;
+        document.getElementById("loc-text").textContent = "📍 " + state.lat + ", " + state.lng;
         checkSubmitReady();
       },
       () => {
-        document.getElementById("loc-text").textContent = "Location denied. Please enable location and refresh.";
+        document.getElementById("loc-text").textContent = "Location denied. Enable location and refresh.";
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   }
 
-  // ── ATTENDANCE PHOTO ──────────────────────────────────────────────
+  // ── PHOTO ─────────────────────────────────────────────────────────
   async function openCamera() {
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({
@@ -367,7 +352,7 @@
       document.getElementById("btn-open-camera").style.display = "none";
       document.getElementById("btn-capture").style.display = "inline-flex";
     } catch(e) {
-      alert("Camera access denied. Please allow camera permission and try again.");
+      alert("Camera denied. Please allow camera and try again.");
     }
   }
 
@@ -376,12 +361,12 @@
     const canvas = document.createElement("canvas");
     canvas.width = 200; canvas.height = 150;
     canvas.getContext("2d").drawImage(video, 0, 0, 200, 150);
-    const fullData = canvas.toDataURL("image/jpeg", 0.25);
-    state.photoBase64 = fullData.split(",")[1];
+    const full = canvas.toDataURL("image/jpeg", 0.25);
+    state.photoBase64 = full.split(",")[1];
     if (state.stream) state.stream.getTracks().forEach(t => t.stop());
     video.style.display = "none";
     const preview = document.getElementById("photo-preview");
-    preview.src = fullData;
+    preview.src = full;
     preview.style.display = "block";
     document.getElementById("btn-capture").style.display = "none";
     document.getElementById("btn-retake").style.display = "inline-flex";
@@ -409,14 +394,14 @@
   }
 
   async function postToScript(payload) {
-    const response = await fetch(WEB_APP_URL, {
+    const res = await fetch(WEB_APP_URL, {
       method: "POST", redirect: "follow", body: JSON.stringify(payload)
     });
-    const text = await response.text();
+    const text = await res.text();
     try { return JSON.parse(text); }
     catch(e) {
-      const match = text.match(/\{"success"[\s\S]*?\}/);
-      if (match) return JSON.parse(match[0]);
+      const m = text.match(/\{"success"[\s\S]*?\}/);
+      if (m) return JSON.parse(m[0]);
       throw new Error("Server error: " + text.substring(0, 150));
     }
   }
@@ -431,20 +416,21 @@
       setProgress(30, "Saving attendance...");
       const res1 = await postToScript({
         name: state.name || "Unknown",
-        uid: state.uid || "Unknown",
-        lat: state.lat || "0",
-        lng: state.lng || "0",
-        timestamp: state.timestamp || new Date().toLocaleString("en-IN"),
+        uid:  state.uid  || "Unknown",
+        lat:  state.lat  || "0",
+        lng:  state.lng  || "0",
+        timestamp:    state.timestamp    || new Date().toLocaleString("en-IN"),
         trainingName: state.trainingName || "Unknown"
       });
-      if (!res1.success) throw new Error(res1.error || "Server returned success:false");
+      if (!res1.success) throw new Error(res1.error || "Failed to save");
 
       setProgress(70, "Uploading photo...");
       try {
-        await postToScript({ type: "photo", rowNum: res1.rowNum, uid: state.uid, photo: state.photoBase64 });
-      } catch(pe) {
-        console.log("Photo upload failed (attendance still saved):", pe.message);
-      }
+        await postToScript({
+          type: "photo", rowNum: res1.rowNum,
+          uid: state.uid, photo: state.photoBase64
+        });
+      } catch(pe) { console.log("Photo upload failed:", pe.message); }
 
       setProgress(100, "Done!");
       setTimeout(() => {

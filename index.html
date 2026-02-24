@@ -105,7 +105,17 @@
       text-align: center; padding: 12px; border-radius: 8px; font-weight: 600;
       display: none; margin-top: 12px; font-size: 13px; word-break: break-all;
     }
-    .status-msg.success { display: block; background: #e8f5e9; color: #2e7d32; padding: 20px 16px; border-radius: 12px; border: 1px solid #a5d6a7; }
+    .status-msg.success {
+      display: block;
+      background: white;
+      color: #2e7d32;
+      padding: 40px 24px;
+      border-radius: 16px;
+      border: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+      margin-top: 24px;
+      text-align: center;
+    }
     .status-msg.error   { display: block; background: #ffebee; color: #c62828; }
     .progress-bar {
       width: 100%; height: 6px; background: #e0e0e0;
@@ -251,6 +261,7 @@
 //  ⚠️  REPLACE with YOUR Attendance Scanner Apps Script URL
 // ─────────────────────────────────────────────────────────────────
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
+
 const state = {
   name: "", uid: "", rowNum: 0,
   trainingName: "", lat: null, lng: null,
@@ -566,7 +577,15 @@ async function submitAttendance() {
       document.getElementById("progress-bar").style.display = "none";
       btn.style.display = "none";
 
-      msg.className = "status-msg success";
+      // Hide all step cards so only the greeting is visible
+      document.querySelectorAll(".step-card").forEach(c => c.style.display = "none");
+      document.querySelector(".info-card").style.display = "none";
+
+      msg.className     = "status-msg success";
+      msg.style.display = "block";
+
+      // Scroll to top so greeting is immediately visible
+      window.scrollTo({ top: 0, behavior: "smooth" });
       msg.innerHTML =
         "<div style='font-size:40px;margin-bottom:8px;'>&#127881;</div>" +
         "<div style='font-size:18px;font-weight:800;color:#1b5e20;margin-bottom:6px;'>" +

@@ -105,7 +105,7 @@
       text-align: center; padding: 12px; border-radius: 8px; font-weight: 600;
       display: none; margin-top: 12px; font-size: 13px; word-break: break-all;
     }
-    .status-msg.success { display: block; background: #e8f5e9; color: #2e7d32; }
+    .status-msg.success { display: block; background: #e8f5e9; color: #2e7d32; padding: 20px 16px; border-radius: 12px; border: 1px solid #a5d6a7; }
     .status-msg.error   { display: block; background: #ffebee; color: #c62828; }
     .progress-bar {
       width: 100%; height: 6px; background: #e0e0e0;
@@ -557,9 +557,25 @@ async function submitAttendance() {
     setProgress(100, "Done!");
     setTimeout(() => {
       document.getElementById("progress-bar").style.display = "none";
-      msg.className   = "status-msg success";
-      msg.textContent = "✅ Attendance recorded! You may close this page.";
       btn.style.display = "none";
+
+      const displayName  = state.name || "Friend";
+      const trainingName = state.trainingName || "the training";
+      const dateStr      = state.timestamp
+        ? state.timestamp.split(",")[0].trim()
+        : new Date().toLocaleDateString("en-IN");
+
+      msg.className = "status-msg success";
+      msg.innerHTML =
+        "<div style='font-size:40px;margin-bottom:8px;'>🎉</div>" +
+        "<div style='font-size:18px;font-weight:800;color:#1b5e20;margin-bottom:6px;'>" +
+          "Thank You, " + displayName + "!" +
+        "</div>" +
+        "<div style='font-size:14px;font-weight:500;color:#2e7d32;line-height:1.6;'>" +
+          "Your attendance for <strong>" + trainingName + "</strong><br>" +
+          "on <strong>" + dateStr + "</strong> has been captured." +
+        "</div>" +
+        "<div style='margin-top:10px;font-size:12px;color:#66bb6a;'>You may close this page.</div>";
     }, 500);
 
   } catch (e) {

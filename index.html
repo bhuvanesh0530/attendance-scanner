@@ -165,6 +165,7 @@
     <div>
       <div class="member-name" id="display-name">Loading...</div>
       <div class="member-uid"  id="display-uid">Please wait...</div>
+      <div class="member-uid"  id="display-project" style="color:#0b78ba;font-weight:600;margin-top:2px;"></div>
     </div>
   </div>
 
@@ -263,7 +264,7 @@
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
 
 const state = {
-  name: "", uid: "", rowNum: 0,
+  name: "", uid: "", project: "", rowNum: 0,
   trainingName: "", lat: null, lng: null,
   timestamp: "", photoBase64: "", photoStream: null
 };
@@ -315,13 +316,16 @@ window.onload = async () => {
       const json = await jsonpFetch(WEB_APP_URL + "?action=getmember&row=" + row);
       if (json.name) state.name = json.name;
       if (json.uid)  state.uid  = json.uid;
+      if (json.project) state.project = json.project;
     } catch (e) { console.warn("Member fetch:", e); }
   }
 
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
   document.getElementById("display-uid").textContent  =
-    state.uid  || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
+    state.uid  || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL
+  document.getElementById("display-project").textContent =
+    state.project ? "📋 " + state.project : "";
 
   getLocation();
 };

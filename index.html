@@ -106,17 +106,11 @@
       display: none; margin-top: 12px; font-size: 13px; word-break: break-all;
     }
     .status-msg.success {
-      display: block;
-      background: white;
-      color: #2e7d32;
-      padding: 40px 24px;
-      border-radius: 16px;
-      border: none;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.10);
-      margin-top: 24px;
-      text-align: center;
+      display: block; background: white; color: #2e7d32;
+      padding: 40px 24px; border-radius: 16px; border: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.10); margin-top: 24px; text-align: center;
     }
-    .status-msg.error   { display: block; background: #ffebee; color: #c62828; }
+    .status-msg.error { display: block; background: #ffebee; color: #c62828; }
     .progress-bar {
       width: 100%; height: 6px; background: #e0e0e0;
       border-radius: 3px; margin-top: 10px; display: none;
@@ -258,9 +252,6 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────
-//  ⚠️  REPLACE with YOUR Attendance Scanner Apps Script URL
-// ─────────────────────────────────────────────────────────────────
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
 
 const state = {
@@ -273,9 +264,6 @@ let scanStream    = null;
 let scanInterval  = null;
 let scannerActive = false;
 
-// ─────────────────────────────────────────────────────────────────
-//  JSONP helper — fetches via <script> tag, avoids ALL CORS issues
-// ─────────────────────────────────────────────────────────────────
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
@@ -284,28 +272,19 @@ function jsonpFetch(url) {
       cleanup();
       reject(new Error("Request timed out"));
     }, 20000);
-
-    window[cbName] = (data) => {
-      cleanup();
-      resolve(data);
-    };
-
+    window[cbName] = (data) => { cleanup(); resolve(data); };
     function cleanup() {
       clearTimeout(timer);
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
     }
-
     script.onerror = () => { cleanup(); reject(new Error("Network error")); };
-    // Append callback param
     script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cbName;
     document.head.appendChild(script);
   });
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  ON LOAD
-// ─────────────────────────────────────────────────────────────────
+// ── ON LOAD ──────────────────────────────────────────────────────
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
   const row    = parseInt(params.get("row") || "0");
@@ -314,25 +293,23 @@ window.onload = async () => {
   if (row > 0) {
     try {
       const json = await jsonpFetch(WEB_APP_URL + "?action=getmember&row=" + row);
-      if (json.name) state.name = json.name;
-      if (json.uid)  state.uid  = json.uid;
+      if (json.name)    state.name    = json.name;
+      if (json.uid)     state.uid     = json.uid;
       if (json.project) state.project = json.project;
     } catch (e) { console.warn("Member fetch:", e); }
   }
 
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
-  document.getElementById("display-uid").textContent  =
-    state.uid  || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL
+  document.getElementById("display-uid").textContent =
+    state.uid || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
   document.getElementById("display-project").textContent =
     state.project ? "📋 " + state.project : "";
 
   getLocation();
 };
 
-// ─────────────────────────────────────────────────────────────────
-//  QR SCANNER — BarcodeDetector (native) → jsQR (canvas fallback)
-// ─────────────────────────────────────────────────────────────────
+// ── QR SCANNER ───────────────────────────────────────────────────
 async function startScanner() {
   if (scannerActive) return;
   const btn = document.getElementById("btn-start-scan");
@@ -453,9 +430,7 @@ function setManualTraining() {
   document.getElementById("manual-input-row").style.display = "none";
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  LOCATION
-// ─────────────────────────────────────────────────────────────────
+// ── LOCATION ─────────────────────────────────────────────────────
 function getLocation() {
   if (!navigator.geolocation) {
     document.getElementById("loc-text").textContent = "Geolocation not supported.";
@@ -475,9 +450,7 @@ function getLocation() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  PHOTO
-// ─────────────────────────────────────────────────────────────────
+// ── PHOTO ─────────────────────────────────────────────────────────
 async function openCamera() {
   try {
     state.photoStream = await navigator.mediaDevices.getUserMedia({
@@ -514,10 +487,7 @@ function retakePhoto() {
   checkSubmitReady();
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  SUBMIT — uses JSONP (GET) to avoid CORS entirely
-//  Photo is sent separately as a second JSONP call
-// ─────────────────────────────────────────────────────────────────
+// ── SUBMIT ────────────────────────────────────────────────────────
 function checkSubmitReady() {
   document.getElementById("btn-submit").disabled =
     !(state.trainingName && state.lat && state.photoBase64);
@@ -537,7 +507,6 @@ async function submitAttendance() {
   try {
     setProgress(30, "Saving attendance...");
 
-    // Build attendance URL — all data as query params
     const attendanceUrl = WEB_APP_URL
       + "?action=attendance"
       + "&name="         + encodeURIComponent(state.name         || "Unknown")
@@ -553,13 +522,11 @@ async function submitAttendance() {
 
     setProgress(70, "Uploading photo...");
 
-    // Photo is base64 — too large for GET params, so send via no-cors POST
-    // We won't get a response but that's OK — attendance is already saved
     try {
       await fetch(WEB_APP_URL, {
         method: "POST",
-        mode:   "no-cors",       // fire-and-forget, no CORS error thrown
-        headers: { "Content-Type": "text/plain" },  // text/plain avoids preflight
+        mode:   "no-cors",
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           action: "photo",
           rowNum: res1.rowNum,
@@ -571,25 +538,19 @@ async function submitAttendance() {
 
     setProgress(100, "Done!");
 
-    // Capture values NOW before setTimeout (avoids any scope/timing issues)
-    const displayName  = (state.name         || "").trim() || document.getElementById("display-name").textContent.trim() || "Friend";
-    const trainingName = (state.trainingName  || "").trim() || "the training";
-    const dateStr      = (state.timestamp || "").trim()
+    const displayName  = (state.name        || "").trim() || document.getElementById("display-name").textContent.trim() || "Friend";
+    const trainingName = (state.trainingName || "").trim() || "the training";
+    const dateStr      = (state.timestamp   || "").trim()
       ? state.timestamp.split(",")[0].trim()
       : new Date().toLocaleDateString("en-IN");
 
     setTimeout(() => {
       document.getElementById("progress-bar").style.display = "none";
       btn.style.display = "none";
-
-      // Hide all step cards so only the greeting is visible
       document.querySelectorAll(".step-card").forEach(c => c.style.display = "none");
       document.querySelector(".info-card").style.display = "none";
-
       msg.className     = "status-msg success";
       msg.style.display = "block";
-
-      // Scroll to top so greeting is immediately visible
       window.scrollTo({ top: 0, behavior: "smooth" });
       msg.innerHTML =
         "<div style='font-size:40px;margin-bottom:8px;'>&#127881;</div>" +

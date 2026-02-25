@@ -542,6 +542,7 @@ async function submitAttendance() {
       + "?action=attendance"
       + "&name="         + encodeURIComponent(state.name         || "Unknown")
       + "&uid="          + encodeURIComponent(state.uid          || "Unknown")
+      + "&project="      + encodeURIComponent(state.project      || "NA")
       + "&lat="          + encodeURIComponent(state.lat          || "0")
       + "&lng="          + encodeURIComponent(state.lng          || "0")
       + "&timestamp="    + encodeURIComponent(state.timestamp    || new Date().toLocaleString("en-IN"))

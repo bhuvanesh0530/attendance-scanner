@@ -255,7 +255,7 @@
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
 
 const state = {
-  name: "", uid: "", project: "", rowNum: 0,
+  name: "", uid: "", project: "",
   trainingName: "", lat: null, lng: null,
   timestamp: "", photoBase64: "", photoStream: null
 };
@@ -285,24 +285,29 @@ function jsonpFetch(url) {
 }
 
 // ── ON LOAD ──────────────────────────────────────────────────────
+// ✅ FIXED: Now reads ?uid= from URL instead of ?row=
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
-  const row    = parseInt(params.get("row") || "0");
-  state.rowNum = row;
+  const uid    = (params.get("uid") || "").toString().trim().toUpperCase();
+  state.uid    = uid;
 
-  if (row > 0) {
+  if (uid) {
     try {
-      const json = await jsonpFetch(WEB_APP_URL + "?action=getmember&row=" + row);
+      const json = await jsonpFetch(
+        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid)
+      );
       if (json.name)    state.name    = json.name;
       if (json.uid)     state.uid     = json.uid;
       if (json.project) state.project = json.project;
-    } catch (e) { console.warn("Member fetch:", e); }
+    } catch (e) {
+      console.warn("Member fetch error:", e);
+    }
   }
 
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
   document.getElementById("display-uid").textContent =
-    state.uid || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
+    state.uid || (uid ? "UID not found: " + uid : "No UID in URL");
   document.getElementById("display-project").textContent =
     state.project ? "📋 " + state.project : "";
 
@@ -507,10 +512,11 @@ async function submitAttendance() {
   try {
     setProgress(30, "Saving attendance...");
 
+    // ✅ FIXED: Passes uid so server finds correct row dynamically
     const attendanceUrl = WEB_APP_URL
       + "?action=attendance"
-      + "&name="         + encodeURIComponent(state.name         || "Unknown")
       + "&uid="          + encodeURIComponent(state.uid          || "Unknown")
+      + "&name="         + encodeURIComponent(state.name         || "Unknown")
       + "&project="      + encodeURIComponent(state.project      || "NA")
       + "&lat="          + encodeURIComponent(state.lat          || "0")
       + "&lng="          + encodeURIComponent(state.lng          || "0")
@@ -529,7 +535,6 @@ async function submitAttendance() {
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           action: "photo",
-          rowNum: res1.rowNum,
           uid:    state.uid,
           photo:  state.photoBase64
         })

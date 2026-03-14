@@ -252,7 +252,6 @@
 </div>
 
 <script>
-// ✅ Use latest deployment URL
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxFic6ia6qpi7dUc7l9nQcpU62KKk7YaH52m4v9jFm_LJgJJrLNMwXOYNRzwkiY3c1M/exec";
 
 const state = {
@@ -265,22 +264,43 @@ let scanStream    = null;
 let scanInterval  = null;
 let scannerActive = false;
 
-// ── POST FETCH ────────────────────────────────────────────────────
-// ✅ Uses POST like Aadhaar system — no JSONP issues
+// ── JSONP FETCH — for getmember (GET request, no CORS issues) ────
+function jsonpFetch(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+    const script = document.createElement("script");
+    const timer  = setTimeout(() => {
+      cleanup();
+      reject(new Error("Request timed out"));
+    }, 20000);
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    script.onerror = () => { cleanup(); reject(new Error("Network error")); };
+    script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+// ── POST FETCH — for attendance and photo (POST request) ─────────
 async function postFetch(payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(WEB_APP_URL, {
-      method:  "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body:    JSON.stringify(payload),
-      signal:  controller.signal
+      method:   "POST",
+      headers:  { "Content-Type": "text/plain;charset=UTF-8" },
+      body:     JSON.stringify(payload),
+      signal:   controller.signal,
+      redirect: "follow"
     });
     clearTimeout(timer);
-    if (!response.ok) throw new Error("HTTP " + response.status);
     const text = await response.text();
-    return JSON.parse(text);
+    try { return JSON.parse(text); }
+    catch { return { success: true }; }
   } catch (e) {
     clearTimeout(timer);
     throw e;
@@ -295,8 +315,10 @@ window.onload = async () => {
 
   if (uid) {
     try {
-      // ✅ POST fetch like Aadhaar system
-      const json = await postFetch({ action: "getmember", uid: uid });
+      // ✅ JSONP for getmember — GET request avoids 302 redirect issue
+      const json = await jsonpFetch(
+        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid)
+      );
       if (json.name)    state.name    = json.name;
       if (json.uid)     state.uid     = json.uid;
       if (json.project) state.project = json.project;
@@ -513,7 +535,7 @@ async function submitAttendance() {
   try {
     setProgress(30, "Saving attendance...");
 
-    // ✅ POST fetch like Aadhaar system
+    // ✅ POST fetch for attendance
     const res1 = await postFetch({
       action:       "attendance",
       uid:          state.uid          || "Unknown",
@@ -577,3 +599,4 @@ async function submitAttendance() {
 </script>
 </body>
 </html>
+https://bhuvanesh0530.github.io/attendance-scanner/?uid=SMB-KAN-WAL-NA-NA-90

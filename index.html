@@ -287,12 +287,14 @@ function jsonpFetch(url) {
 // ── ON LOAD ──────────────────────────────────────────────────────
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
-  const row    = parseInt(params.get("row") || "0");
-  state.rowNum = row;
+  const uid    = (params.get("uid") || "").toString().trim().toUpperCase();
+  state.uid    = uid;
 
-  if (row > 0) {
+  if (uid) {
     try {
-      const json = await jsonpFetch(WEB_APP_URL + "?action=getmember&row=" + row);
+      const json = await jsonpFetch(
+        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid)
+      );
       if (json.name)    state.name    = json.name;
       if (json.uid)     state.uid     = json.uid;
       if (json.project) state.project = json.project;
@@ -302,7 +304,7 @@ window.onload = async () => {
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
   document.getElementById("display-uid").textContent =
-    state.uid || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
+    state.uid || (uid ? "UID not found: " + uid : "No UID in URL");
   document.getElementById("display-project").textContent =
     state.project ? "📋 " + state.project : "";
 

@@ -252,10 +252,10 @@
 </div>
 
 <script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyfYWxGTG0W_Cg84rRknMIx8hQlkSM95-o4Wtymf8gK24SDhWnjrmFGxPXtMJ01b6So/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
 
 const state = {
-  name: "", uid: "", project: "",
+  name: "", uid: "", project: "", rowNum: 0,
   trainingName: "", lat: null, lng: null,
   timestamp: "", photoBase64: "", photoStream: null
 };
@@ -264,7 +264,6 @@ let scanStream    = null;
 let scanInterval  = null;
 let scannerActive = false;
 
-// ── JSONP FETCH — for getmember (GET request, no CORS issues) ────
 function jsonpFetch(url) {
   return new Promise((resolve, reject) => {
     const cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
@@ -285,52 +284,25 @@ function jsonpFetch(url) {
   });
 }
 
-// ── POST FETCH — for attendance and photo (POST request) ─────────
-async function postFetch(payload) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
-  try {
-    const response = await fetch(WEB_APP_URL, {
-      method:   "POST",
-      headers:  { "Content-Type": "text/plain;charset=UTF-8" },
-      body:     JSON.stringify(payload),
-      signal:   controller.signal,
-      redirect: "follow"
-    });
-    clearTimeout(timer);
-    const text = await response.text();
-    try { return JSON.parse(text); }
-    catch { return { success: true }; }
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
-  }
-}
-
 // ── ON LOAD ──────────────────────────────────────────────────────
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
-  const uid    = (params.get("uid") || "").toString().trim().toUpperCase();
-  state.uid    = uid;
+  const row    = parseInt(params.get("row") || "0");
+  state.rowNum = row;
 
-  if (uid) {
+  if (row > 0) {
     try {
-      // ✅ JSONP for getmember — GET request avoids 302 redirect issue
-      const json = await jsonpFetch(
-        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid)
-      );
+      const json = await jsonpFetch(WEB_APP_URL + "?action=getmember&row=" + row);
       if (json.name)    state.name    = json.name;
       if (json.uid)     state.uid     = json.uid;
       if (json.project) state.project = json.project;
-    } catch (e) {
-      console.warn("Member fetch error:", e);
-    }
+    } catch (e) { console.warn("Member fetch:", e); }
   }
 
   document.getElementById("display-name").textContent =
     state.name || "Name not found";
   document.getElementById("display-uid").textContent =
-    state.uid || (uid ? "UID not found: " + uid : "No UID in URL");
+    state.uid || (row > 0 ? "UID not found (row " + row + ")" : "No row in URL");
   document.getElementById("display-project").textContent =
     state.project ? "📋 " + state.project : "";
 
@@ -535,33 +507,38 @@ async function submitAttendance() {
   try {
     setProgress(30, "Saving attendance...");
 
-    // ✅ POST fetch for attendance
-    const res1 = await postFetch({
-      action:       "attendance",
-      uid:          state.uid          || "Unknown",
-      name:         state.name         || "Unknown",
-      project:      state.project      || "NA",
-      lat:          state.lat          || "0",
-      lng:          state.lng          || "0",
-      timestamp:    state.timestamp    || new Date().toLocaleString("en-IN"),
-      trainingName: state.trainingName || "Unknown"
-    });
+    const attendanceUrl = WEB_APP_URL
+      + "?action=attendance"
+      + "&name="         + encodeURIComponent(state.name         || "Unknown")
+      + "&uid="          + encodeURIComponent(state.uid          || "Unknown")
+      + "&project="      + encodeURIComponent(state.project      || "NA")
+      + "&lat="          + encodeURIComponent(state.lat          || "0")
+      + "&lng="          + encodeURIComponent(state.lng          || "0")
+      + "&timestamp="    + encodeURIComponent(state.timestamp    || new Date().toLocaleString("en-IN"))
+      + "&trainingName=" + encodeURIComponent(state.trainingName || "Unknown");
 
+    const res1 = await jsonpFetch(attendanceUrl);
     if (!res1.success) throw new Error(res1.error || "Failed to save attendance");
 
     setProgress(70, "Uploading photo...");
 
     try {
-      await postFetch({
-        action: "photo",
-        uid:    state.uid,
-        photo:  state.photoBase64
+      await fetch(WEB_APP_URL, {
+        method: "POST",
+        mode:   "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "photo",
+          rowNum: res1.rowNum,
+          uid:    state.uid,
+          photo:  state.photoBase64
+        })
       });
     } catch (pe) { console.warn("Photo upload (non-fatal):", pe.message); }
 
     setProgress(100, "Done!");
 
-    const displayName  = (state.name        || "").trim() || "Friend";
+    const displayName  = (state.name        || "").trim() || document.getElementById("display-name").textContent.trim() || "Friend";
     const trainingName = (state.trainingName || "").trim() || "the training";
     const dateStr      = (state.timestamp   || "").trim()
       ? state.timestamp.split(",")[0].trim()
@@ -599,4 +576,3 @@ async function submitAttendance() {
 </script>
 </body>
 </html>
-https://bhuvanesh0530.github.io/attendance-scanner/?uid=SMB-KAN-WAL-NA-NA-90

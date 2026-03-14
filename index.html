@@ -252,7 +252,12 @@
 </div>
 
 <script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzY_gcq9NvCZqS729A2gYd9zEXrPCDzc8lnoHyhkoUgRGxZEM8uO4ba_qVSvuorApA/exec";
+// ✅ UPDATED: New deployment URL
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxFic6ia6qpi7dUc7l9nQcpU62KKk7YaH52m4v9jFm_LJgJJrLNMwXOYNRzwkiY3c1M/exec";
+
+// ✅ Spreadsheet ID passed directly to avoid getActiveSpreadsheet() issues
+const SSID = "1Ck9NLgp0WwuvU7S76JmetMhrIqQlQBNr1jjbojsGhUo";
+
 const state = {
   name: "", uid: "", project: "",
   trainingName: "", lat: null, lng: null,
@@ -284,7 +289,6 @@ function jsonpFetch(url) {
 }
 
 // ── ON LOAD ──────────────────────────────────────────────────────
-// ✅ FIXED: Now reads ?uid= from URL instead of ?row=
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
   const uid    = (params.get("uid") || "").toString().trim().toUpperCase();
@@ -292,8 +296,9 @@ window.onload = async () => {
 
   if (uid) {
     try {
+      // ✅ FIXED: Pass ssid directly so openById works correctly
       const json = await jsonpFetch(
-        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid)
+        WEB_APP_URL + "?action=getmember&uid=" + encodeURIComponent(uid) + "&ssid=" + SSID
       );
       if (json.name)    state.name    = json.name;
       if (json.uid)     state.uid     = json.uid;
@@ -511,9 +516,10 @@ async function submitAttendance() {
   try {
     setProgress(30, "Saving attendance...");
 
-    // ✅ FIXED: Passes uid so server finds correct row dynamically
+    // ✅ FIXED: Pass ssid so server finds correct spreadsheet
     const attendanceUrl = WEB_APP_URL
       + "?action=attendance"
+      + "&ssid="         + SSID
       + "&uid="          + encodeURIComponent(state.uid          || "Unknown")
       + "&name="         + encodeURIComponent(state.name         || "Unknown")
       + "&project="      + encodeURIComponent(state.project      || "NA")
